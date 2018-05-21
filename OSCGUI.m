@@ -13,6 +13,8 @@ classdef OSCGUI < handle
       WF_period_selectors
       WF_amp_selectors
       WF_pw_selectors
+      
+      WF_pipe_selectors
     end
     
     methods
@@ -30,6 +32,8 @@ classdef OSCGUI < handle
             obj.WF_period_selectors = zeros(4, 1);
             obj.WF_amp_selectors = zeros(4, 1);
             obj.WF_pw_selectors = zeros(4, 1);
+            
+            obj.WF_pipe_selectors = zeros(3,12);
             
             obj.CreateSetup();
             obj.CreateHeadstagePanels();
@@ -51,7 +55,7 @@ classdef OSCGUI < handle
                             parent, 'Position', [.0 .90 - (chan - 1) * (1/13) .1 1/13], 'Background', 'white');
                 this.Channel_WF_selectors(hs, chan) = uicontrol('Style', 'popupmenu', 'String', {'Waveform 1', 'Waveform 2', 'Waveform 3', 'Waveform 4'}, 'Units', 'normalized', 'Parent',... 
                             parent, 'Position', [.1 .90 - (chan - 1) * (1/13) .2 1/13], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'Callback', @this.WFSelectorCB);
-                this.Channel_Trig_selectors(hs, chan)= uicontrol('Style', 'popupmenu', 'String', {'PC Trigger', 'External Trigger'}, 'Units', 'normalized', 'Parent',... 
+                this.Channel_Trig_selectors(hs, chan)= uicontrol('Style', 'popupmenu', 'String', {'PC Trigger', 'External Trigger','Pipe Waveform Trigger'}, 'Units', 'normalized', 'Parent',... 
                             parent, 'Position', [.3 .90 - (chan - 1) * (1/13) .2 1/13], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'UserData', struct('hs', hs, 'chan', chan),...
                             'Callback', @this.TrigSelectorCB);
                 uicontrol('Style', 'togglebutton', 'String', 'Continuous Stream', 'Units', 'normalized', 'Parent', parent, 'UserData', struct('hs', hs, 'chan', chan),... 
@@ -66,6 +70,11 @@ classdef OSCGUI < handle
         end
         
         function TrigSelectorCB(this, source, eventdata)
+            if(get(source, 'Value') - 1 == 2) 
+                this.WF_pipe_selectors(source.UserData.hs, source.UserData.chan) = 1;
+            else
+                this.WF_pipe_selectors(source.UserData.hs, source.UserData.chan) = 0;
+            end
             this.os.UpdateChannelTriggerType(source.UserData.hs, source.UserData.chan, get(source, 'Value') - 1);
         end
         
@@ -85,12 +94,17 @@ classdef OSCGUI < handle
                 'Position', [.05 .78 .34 .17]);
             hbutton = uicontrol('Style','pushbutton','String','Connect','Units', 'normalized', 'Position',[.55 .65 .4 .3],'Callback',@this.ConnectCallback, 'Parent', setup_panel);
             align(hbutton,'Center','None');
-            config_button = uicontrol('Style','pushbutton','String','Configure','Units', 'normalized', 'Position',[.05 .05 .30 .45],'Callback',@this.ConfigCallback, 'Parent', setup_panel);
+            config_button = uicontrol('Style','pushbutton','String','Configure','Units', 'normalized', 'Position',[.0 .05 .25 .45],'Callback',@this.ConfigCallback, 'Parent', setup_panel);
             align(config_button,'Center','None');
-            load_parameter_button = uicontrol('Style','pushbutton','String','Load Parameters from File','Units', 'normalized', 'Position',[.35 .05 .30 .45],...
+            load_parameter_button = uicontrol('Style','pushbutton','String','Load Parameters from File','Units', 'normalized', 'Position',[.50 .05 .25 .45],...
                 'Callback',@this.LoadParameterCallback, 'Parent', setup_panel);
             align(load_parameter_button,'Center','None');
-            save_parameter_button = uicontrol('Style','pushbutton','String','Save Parameters To File','Units', 'normalized', 'Position',[.65 .05 .30 .45],...
+            
+            load_pipe_button = uicontrol('Style','pushbutton','String','Load Pipedata from File','Units', 'normalized', 'Position',[.25 .05 .25 .45],...
+                'Callback',@this.LoadPipeCallback, 'Parent', setup_panel);
+            align(load_pipe_button,'Center','None');
+            
+            save_parameter_button = uicontrol('Style','pushbutton','String','Save Parameters To File','Units', 'normalized', 'Position',[.75 .05 .25 .45],...
                 'Callback',@this.SaveParameterCallback, 'Parent', setup_panel);
             align(save_parameter_button,'Center','None');
             this.serial_selector = uicontrol('Style', 'popupmenu', 'String', this.os.GetBoardSerials(), 'Units', 'normalized', 'Parent',... 
@@ -123,6 +137,13 @@ classdef OSCGUI < handle
                this.UpdateParamDisplay();
             end
         end
+        
+        function LoadPipeCallback(this, source, eventdata)
+            [config_file, path] = uigetfile('*.txt', 'Select configuration txt file');
+            if ~isequal(config_file, 0)
+                this.os.SavePipeFromFile(strcat(path, config_file));
+            end
+        end 
         
         function UpdateParamDisplay(this)
             for hs = 1:3
@@ -242,7 +263,12 @@ classdef OSCGUI < handle
         end
         
         function TriggerCallback(this, source, eventdata)
-            this.os.TriggerChannel(source.UserData.Headstage, source.UserData.Channel)
+            if(this.WF_pipe_selectors(source.UserData.Headstage, source.UserData.Channel) == 1)
+                ec = this.os.TriggerPipe(source.UserData.Headstage, source.UserData.Channel);
+                fprintf('Pipewave Trigger at headstage %d channel %d status is %d. \n', source.UserData.Headstage, source.UserData.Channel, ec);
+            else
+                this.os.TriggerChannel(source.UserData.Headstage, source.UserData.Channel);
+            end
         end
             
         function ConnectCallback(this, source, eventdata)
