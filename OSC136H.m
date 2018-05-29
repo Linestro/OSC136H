@@ -20,8 +20,6 @@ classdef OSC136H < handle
         % period - frequency (ms)
         Waveforms
         
-        pipe_data
-        
         % OKFP Dev object for using the Opal Kelly FP Library
         dev
         
@@ -88,7 +86,6 @@ classdef OSC136H < handle
             obj.Channels = zeros(36, 3); 
             obj.Waveforms = zeros(4, 4);
             obj.dev = calllib('okFrontPanel', 'okFrontPanel_Construct');
-            obj.pipe_data(1, 1) = uint16(0);
             fprintf('Successfully loaded okFrontPanel.\n');
         end
         
@@ -96,7 +93,7 @@ classdef OSC136H < handle
         % Disconnects from the board to prevent connection issues when
         % using multiple instances of the classes. 
         function delete(this)
-           this.Disconnect()
+             this.Disconnect();
         end
         
         % isOpen
@@ -140,6 +137,7 @@ classdef OSC136H < handle
               ec = 0;
               return
            end
+           this.SysReset();
            calllib('okFrontPanel', 'okFrontPanel_Close', this.dev);
            if this.isOpen()
                fprintf('Failed to close board\n')
@@ -156,7 +154,6 @@ classdef OSC136H < handle
         function Configure(this, filename)
            ec = calllib('okFrontPanel', 'okFrontPanel_ConfigureFPGA', this.dev, filename);
            if ec ~= "ok_NoError"
-               ec
                fprintf('Error loading bitfile\n')
                return
            end
@@ -248,98 +245,13 @@ classdef OSC136H < handle
             end
         end
         
-      % SavePipeFromConfigFile
-      % Takes no arguments, initializes this.pipe_data from pipe.txt.
-       function SavePipeFromFile(this, filename)
-            fprintf('Saving pipe data from %s\n', filename)
-            fd = fopen(filename, 'r');
-            if fd == -1
-               fprintf('Error opening pipe data file.\n');
-               return
-            end
-            PERIOD = fscanf(fd, '%f', 1);
-            if(PERIOD == 0)
-               frewind(fd);
-               this.pipe_data = fscanf(fd, '%f', 511);
-               this.pipe_data = uint16(this.pipe_data);
-%                for i = 1: prod(size(this.pipe_data))
-%                    fprintf('write %d ',this.pipe_data(i));
-%                end
-            else
-               frewind(fd);
-               temp_data = fscanf(fd, '%f', PERIOD + 1);
-               if(prod(size(this.pipe_data)) >= PERIOD + 1)
-                   this.pipe_data = temp_data;
-               else
-                   this.pipe_data(PERIOD + 1, 1) = uint16(0);
-                   for i = 1: prod(size(temp_data))
-                   this.pipe_data(i) = temp_data(i);
-                   end
-               end
-%                for i = 1: prod(size(this.pipe_data))
-%                    fprintf('write %d ',this.pipe_data(i));
-%                end
-            end
-            fclose(fd);
-       end
-        
-        % TriggerPipe
-        % Triggers a specific headstage channel with specified pipe data.
-        % Require pre-loaded piped data
-       function ec = TriggerPipe(this, headstage, chan)
-        ec = -1;
-            if ~this.isOpen()
-                fprintf('Board not open\n')
-                return
-            end
-         chan_num = this.MapChannel(headstage, chan);
-         [endpoint, begin] = this.GetChannelWireInfo(chan_num);
-         this.OutputWireInVal(endpoint);
-         this.WriteToWireIn(endpoint, begin + 3, 1, 1);
-         this.OutputWireInVal(endpoint);
-    
-        SIZE = prod(size(this.pipe_data)) - 1;         % valid SIZE (1 - 511)
-        if (SIZE <= 0)
-            fprintf('Error: Invalid pipe data size. \n');
-            return
-        end
-%         PERIOD = this.pipe_data(1);                   % valid PERIOD (0 - SIZE) 0 for one-shot
-        for i = 2:(SIZE + 1)
-            fprintf('Write %u \n',  this.pipe_data(i));
-        end    
-        
-        fprintf('Write period to be %u \n',  this.pipe_data(1));
-        data_out(2 * SIZE + 2, 1) = uint8(0);
-        for i = 1:SIZE + 1
-            data_out(2 * i - 1) = uint8(bitshift(this.pipe_data(i), -8) & hex2dec('FF')); 
-            data_out(2 * i) = uint8(mod(this.pipe_data(i), 256)); 
-        end
-        
-        calllib('okFrontPanel', 'okFrontPanel_WriteToPipeIn', this.dev, hex2dec('80'), 2 * SIZE + 2, data_out);
-        persistent buf pv;
-        buf(2 * SIZE + 2, 1) = uint8(0);
-        pv = libpointer('uint8Ptr', buf);
-        calllib('okFrontPanel', 'okFrontPanel_ReadFromPipeOut', this.dev, hex2dec('A0'), 2 * SIZE + 2, pv);
-%         epvalue = get(pv, 'Value');
-%         pipe_out_data(SIZE, 1) = uint16(0);
-%         for i = 1:SIZE
-%             pipe_out_data(i) = uint16(bitshift(epvalue(2 * i + 1),8) + epvalue(2 * i + 2));
-%             fprintf('Read %d \n',   pipe_out_data(i));
-%         end
-        
-        ec = 0;
-        
-        end
-         
-
-       
         % Saves State of Board to Config File with name Filename
         function SaveBoardToConfigFile(this, filename)
             fprintf('Writing board configuration to file %s\n', filename);
             fd = fopen(filename, 'w');
             fprintf(fd, '%f %f %f\n', this.Channels.');
             fprintf(fd, '%f %f %f %f\n', this.Waveforms.');
-            
+            fclose(fd);
         end
         
         % Gets list of serial numbers for all connected boards
@@ -347,7 +259,7 @@ classdef OSC136H < handle
             serials = 'No connected devices';
             device_count = calllib('okFrontPanel', 'okFrontPanel_GetDeviceCount', this.dev);
             for d = 0:(device_count - 1)
-                sn = calllib('okFrontPanel', 'okFrontPanel_GetDeviceListSerial', this.dev, d, '');
+                sn = calllib('okFrontPanel', 'okFrontPanel_GetDeviceListSerial', this.dev, d, blanks(30));
                 if ~exist('snlist', 'var')
                     snlist = sn;
                 else
@@ -389,41 +301,29 @@ classdef OSC136H < handle
         % individual channel. There are three functions that update the 3
         % individual parameters, and one function that can be used to
         % update all three parameters.
-        
-        % Update: Pipe function will bypass all the parameters. So params
-        % will not change by pipe function.
         function ec = UpdateChannelTriggerType(this, headstage, chan, trig)
             if ~this.isOpen()
                 fprintf('Board not open\n')
                 ec = -1;
                 return
             end
-            if trig ~= 0 && trig ~= 1 && trig ~=2
-               fprintf('Valid arguments to trig_select are 2 and 1 and 0. Error.\n');
+            if trig ~= 0 && trig ~= 1
+               fprintf('Valid arguments to trig_select are 1 and 0. Error.\n');
                ec = -1;
                return
             end
-       
+    
             chan_num = this.MapChannel(headstage, chan);
             if chan_num == -1
                ec = -1;
                return
             end
-            
-            if trig == 2         
-                this.Channels((headstage - 1) * 12 + chan, 2) = trig;
-                ec = 0;
-                return
-            end
-            
-            
             PARAM_SIZE = 1; % One bit of trig information.
             PARAM_OFFSET = 2; % 2 bits of offset for param location. 
             
             [endpoint, begin] = this.GetChannelWireInfo(chan_num);
             this.OutputWireInVal(endpoint);
             this.WriteToWireIn(endpoint, begin + PARAM_OFFSET, PARAM_SIZE, trig);
-            this.WriteToWireIn(endpoint, begin + 3, 1, 0);      % Reset the pipe info if trig ~= 2
             this.OutputWireInVal(endpoint);
             this.Channels((headstage - 1) * 12 + chan, 2) = trig;
             ec = 0;
