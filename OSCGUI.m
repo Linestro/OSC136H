@@ -1,12 +1,16 @@
 classdef OSCGUI < handle
-    %   OSC136H Stimulation System
-    %   Controller class for the OSC136H Stimulation System.
-    %   Phil Dakin, 2018 @University of Michigan
-    %   Haojie Ye, 2018 @University of Michigan
     
     properties        
       os
       f
+      
+      pipe_f
+      
+      num_pipe_pulse
+      pipe_data
+      
+      temp_num_pipe_pulse
+      temp_pipe_data
       
       serial_selector
       
@@ -23,6 +27,7 @@ classdef OSCGUI < handle
       
       load_parameter_button
       save_parameter_button
+      pipe_button
       reset
       
     end
@@ -32,6 +37,10 @@ classdef OSCGUI < handle
             obj.f = figure('Name', 'OSC136H Stim Control', 'NumberTitle', 'off', 'Visible','off','Units', 'characters', 'Position',[0 0 400 80]);
             set(obj.f, 'MenuBar', 'none');
             set(obj.f, 'ToolBar', 'none');
+            
+            obj.pipe_f = figure('Name', 'OSC136H Pipe Initialization', 'NumberTitle', 'off', 'Visible','off','Units', 'characters', 'Position',[20 20 200 40]);
+            set(obj.pipe_f, 'MenuBar', 'none');
+            set(obj.pipe_f, 'ToolBar', 'none');
             
             obj.os = OSC136H();
             
@@ -43,26 +52,55 @@ classdef OSCGUI < handle
             obj.WF_amp_selectors = zeros(4, 1);
             obj.WF_pw_selectors = zeros(4, 1);
             
+            obj.num_pipe_pulse = 0;
+            obj.pipe_data = 0;
+            obj.temp_num_pipe_pulse = 0;
+            obj.temp_pipe_data = 0;
+      
             obj.CreateSetup();
             obj.CreateHeadstagePanels();
             obj.CreateWaveformPanels();
             obj.f.Visible = 'on';
             set(obj.f,'CloseRequestFcn',@(h,e)obj.CloseRequestCallback);
+            set(obj.pipe_f,'CloseRequestFcn',@(h,e)obj.PipeCloseRequestCallback);
+            
+            try
+                while(1)                
+                    pause(1);
+                    temp = obj.os.GetBoardSerials();
+                    if(temp ~= "No connected devices")
+                        set(obj.serial_selector, 'String', temp);
+                        break;
+                    end
+                end
+            catch
+                fprintf("Detection of Board was aborted by the user.\n");
+            end
         end
         
         function delete(this)
-             this.os.delete();
+            this.os.delete();
         end
-         
+        
         function CloseRequestCallback(hObject,eventdata)
+             if(ishandle(hObject.pipe_f))
+                hObject.pipe_f.Visible = 'off';
+             end
              hObject.f.Visible = 'off';
              hObject.delete();
         end
         
+       function PipeCloseRequestCallback(hObject,eventdata)
+             hObject.temp_num_pipe_pulse = hObject.num_pipe_pulse;
+             hObject.temp_pipe_data = hObject.pipe_data;
+             hObject.pipe_f.Visible = 'off';
+             fprintf("Pipe initilization canceled. No changes will be applied.\n");
+       end
+        
         function CreateHeadstagePanels(this)
            for hs = 1:3
               hs_panel = uipanel('Title', strcat("Headstage ", num2str(hs)), 'FontUnits', 'normalized', 'FontSize', (1/14), 'BackgroundColor', 'white', 'Units', 'normalized',...
-                  'Position', [.4 .7 - (.05 + ((hs - 1) * .3)) .55 .3]);
+                  'Position', [.4 .7 - (.05 + ((hs - 1) * .3)) .55 .3], 'Parent', this.f);
               this.PopulateHeadstagePanel(hs_panel, hs);
            end
         end
@@ -73,7 +111,7 @@ classdef OSCGUI < handle
                             parent, 'Position', [.0 .90 - (chan - 1) * (1/13) .1 1/13], 'Background', 'white');
                 this.Channel_WF_selectors(hs, chan) = uicontrol('Style', 'popupmenu', 'String', {'Waveform 1', 'Waveform 2', 'Waveform 3', 'Waveform 4'}, 'Units', 'normalized', 'Parent',... 
                             parent, 'Position', [.1 .90 - (chan - 1) * (1/13) .2 1/13], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'Callback', @this.WFSelectorCB,'Enable','off');
-                this.Channel_Trig_selectors(hs, chan)= uicontrol('Style', 'popupmenu', 'String', {'PC Trigger', 'External Trigger'}, 'Units', 'normalized', 'Parent',... 
+                this.Channel_Trig_selectors(hs, chan)= uicontrol('Style', 'popupmenu', 'String', {'PC Trigger', 'External Trigger','Pipe Trigger'}, 'Units', 'normalized', 'Parent',... 
                             parent, 'Position', [.3 .90 - (chan - 1) * (1/13) .2 1/13], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'UserData', struct('hs', hs, 'chan', chan),...
                             'Callback', @this.TrigSelectorCB,'Enable','off');
                 this.toggle_button(hs, chan) = uicontrol('Style', 'togglebutton', 'String', 'Continuous Stream', 'Units', 'normalized', 'Parent', parent, 'UserData', struct('hs', hs, 'chan', chan),... 
@@ -104,25 +142,32 @@ classdef OSCGUI < handle
         
         function CreateSetup(this)
             setup_panel = uipanel('Title', 'Setup', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
-                'Position', [.05 .78 .34 .17]);
+                'Position', [.05 .78 .34 .17], 'Parent', this.f);
             hbutton = uicontrol('Style','pushbutton','String','Connect & Configure','Units', 'normalized', 'Position',[.55 .65 .4 .3],'Callback',@this.ConnectCallback, 'Parent', setup_panel);
             align(hbutton,'Center','None');
-            this.load_parameter_button = uicontrol('Style','pushbutton','String','Load Parameters from File','Units', 'normalized', 'Position',[.15 .05 .25 .45],...
+            this.load_parameter_button = uicontrol('Style','pushbutton','String','Load Parameters from File','Units', 'normalized', 'Position',[.06 .08 .25 .35],...
                 'Callback',@this.LoadParameterCallback, 'Parent', setup_panel,'Enable','off');
             align(this.load_parameter_button,'Center','None');
-            this.save_parameter_button = uicontrol('Style','pushbutton','String','Save Parameters To File','Units', 'normalized', 'Position',[.60 .05 .25 .45],...
+            this.save_parameter_button = uicontrol('Style','pushbutton','String','Save Parameters To File','Units', 'normalized', 'Position',[.37 .08 .25 .35],...
                 'Callback',@this.SaveParameterCallback, 'Parent', setup_panel,'Enable','off');
             align(this.save_parameter_button,'Center','None');
+            
+            this.pipe_button = uicontrol('Style','pushbutton','String','Pipe Initialization','Units', 'normalized', 'Position',[.67 .08 .25 .35],...
+                'Callback',@this.PipeCallback, 'Parent', setup_panel,'Enable','on');
+            align(this.pipe_button,'Center','None');
+            
             this.serial_selector = uicontrol('Style', 'popupmenu', 'String', this.os.GetBoardSerials(), 'Units', 'normalized', 'Parent',... 
                             setup_panel, 'Position', [.05 .65 .4 .2], 'Background', 'white','Enable','on');
                  
             uicontrol('Style', 'text', 'String', 'Select your OSC136H Opal Kelly Serial', 'Units', 'normalized', 'Parent',...
                 setup_panel, 'Position', [.05, .90, .4, .1], 'Background' , 'White')
                         
-            this.reset = uicontrol('Style','pushbutton','String','Reset','Units', 'normalized', 'Position',[.05 .05 .1 .05],'Callback',@this.ResetCallback, 'Background', 'r','Enable','off');
+            this.reset = uicontrol('Style','pushbutton','String','Reset','Units', 'normalized', 'Position',[.05 .05 .1 .05],'Callback',@this.ResetCallback,...
+                'Parent', this.f,'Background', 'r','Enable','off');
             align(this.reset,'Center','None');
                         
-            exit = uicontrol('Style','pushbutton','String','Exit','Units', 'normalized', 'Position',[.25 .05 .1 .05],'Callback',@this.ExitCallback, 'Background', 'r','Enable','on');
+            exit = uicontrol('Style','pushbutton','String','Exit','Units', 'normalized', 'Position',[.25 .05 .1 .05],'Callback',@this.ExitCallback,...
+                'Parent', this.f, 'Background', 'r','Enable','on');
             align(exit,'Center','None');             
         end
         
@@ -134,8 +179,109 @@ classdef OSCGUI < handle
         end
         
         function ExitCallback(this, source, eventdata)
+            if(ishandle(this.pipe_f))
+                this.pipe_f.Visible = 'off';
+            end
             this.f.Visible = 'off';
             this.delete();
+        end
+        
+        function PipeCallback(this, source, eventdata)
+            this.pipe_f.Visible = 'on';
+            this.CreatePipePanel();
+        end
+        
+        function PipePulseUpdate(this, source, eventdata)
+            val = get(source, 'String');
+            num = str2double(val);
+            if ~isnan(num) && num > 0
+                this.temp_num_pipe_pulse = num;
+            else
+               errordlg('Please enter only positive numeric values for number of pulses.', 'Type Error');
+            end
+        end
+        
+        function LoadPipeCallback(this, source, eventdata)
+          [txtfile, path] = uigetfile('*.txt', 'Select the pipe data .txt file');
+           if ~isequal(txtfile, 0)
+               this.temp_pipe_data = this.os.SavePipeFromFile(strcat(path, txtfile));
+           end 
+        end
+        
+        function SavePipeCallback(this, source, eventdata)
+            this.num_pipe_pulse = this.temp_num_pipe_pulse;
+            this.pipe_data = this.temp_pipe_data;
+            this.pipe_f.Visible = 'off';
+            this.os.UpdatePipeInfo(numel(this.pipe_data), this.num_pipe_pulse);
+            
+            fprintf("Pipe initilization saved.\n");
+            fprintf("The following pattern will be repeating %d times.\n", this.num_pipe_pulse);
+            disp(this.pipe_data);
+        end
+        
+        function CancelPipeCallback(this, source, eventdata)
+            this.temp_num_pipe_pulse = this.num_pipe_pulse;
+            this.temp_pipe_data = this.pipe_data;
+            this.pipe_f.Visible = 'off';
+            fprintf("Pipe initilization canceled. No changes will be applied.\n");
+        end
+        
+        function PreviewPipeCallback(this, source, eventdata)           
+            data_size = numel(this.temp_pipe_data);
+            x = 0:0.01:data_size - 0.01;
+            y = 0:0.01:data_size - 0.01;
+            for i = 1 : numel(x)
+                y(i) = this.temp_pipe_data(floor(x(i)) + 1);
+            end
+            figure('Name','Preview of Pipe Waveform','numbertitle', 'off');
+            plot(x,y);
+            if(this.temp_num_pipe_pulse > 0)
+                title(strcat({'The following pattern will repeat  '},num2str(this.temp_num_pipe_pulse),{'  times.'}));
+            else
+                title('The following pattern will be continuous.');  
+            end
+            axis([0 data_size 0 max(max(this.temp_pipe_data))+1 ]);
+        end
+        
+        function CreatePipePanel(this)           
+            pipe_text_panel = uipanel('Title', 'Instruction', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
+                'Position', [.05 .10 .34 .85], 'Parent', this.pipe_f);  
+            
+            intro_string = {'Pipe waveform will assign a pre-defined amplitude on each cycle when it is triggered.',...
+                'The minimum cycle in time is xxx ms','The maximum period of waveform is xxx cycles, i.e. xxx ms',' '...
+                'To define the pipe data:','Step 1: Type in the number of pulses (0 for Continuous)', ...
+                'Step 2: Input a .txt file, which contains one number (0-1023) to represent the amplitude for each cycle. The number of lines in .txt will reflect the period of the waveform',...
+                'Step 3: (Optional) Preview the waveform','Step 4: Save the data and Exit', 'Step 5: Select pipe waveform and trigger on a certain channel','Click Cancel to exit without saving'};
+
+            uicontrol('Style', 'text', 'FontSize', 12, 'String', intro_string, 'Units', 'normalized', 'Parent',... 
+                            pipe_text_panel, 'Position',[0.05 0.05 0.8 0.9], 'Background', 'white','horizontalalignment','left');
+                
+            pipe_setup1_panel = uipanel('Title', 'Step 1', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
+                'Position', [.50 .78 .34 .17], 'Parent', this.pipe_f);
+            
+            uicontrol('Style', 'text', 'FontSize', 10, 'String', 'Number of Pulses', 'Units', 'normalized', 'Parent',... 
+                            pipe_setup1_panel, 'Position', [-0.12 .22 .6 .45], 'Background', 'white');
+            uicontrol('Style', 'edit', 'String', num2str(this.temp_num_pipe_pulse), 'Units', 'normalized', 'Parent',... 
+                pipe_setup1_panel, 'Position', [.45 .37 .32 .32], 'Background', 'white', 'Callback', @this.PipePulseUpdate);
+            
+            pipe_setup2_panel = uipanel('Title', 'Step 2', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
+                'Position', [.50 .53 .34 .19], 'Parent', this.pipe_f);
+            uicontrol('Style','pushbutton','String','Load pipe from File','Units', 'normalized', 'Position',[.3 .35 .4 .4],...
+                'Callback',@this.LoadPipeCallback, 'Parent', pipe_setup2_panel);
+            
+            pipe_setup3_panel = uipanel('Title', 'Step 3 (Optional)', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
+                'Position', [.50 .28 .34 .19], 'Parent', this.pipe_f);
+            uicontrol('Style','pushbutton','String','Preview the pipe function','Units', 'normalized', 'Position',[.3 .35 .4 .4],...
+                'Callback',@this.PreviewPipeCallback, 'Parent', pipe_setup3_panel);
+            
+            savepipe_button = uicontrol('Style','pushbutton','String','Save & Exit', 'FontSize', 10, 'Units', 'normalized', 'Position',[.50 .11 .15 .08],'Callback',@this.SavePipeCallback,...
+                'Parent', this.pipe_f,'Background', 'g');
+            align(savepipe_button,'Center','None');
+            
+            cancel_button = uicontrol('Style','pushbutton','String','Cancel', 'FontSize', 10, 'Units', 'normalized', 'Position',[.70 .11 .15 .08],'Callback',@this.CancelPipeCallback,...
+                'Parent', this.pipe_f,'Background', 'r');
+            align(cancel_button,'Center','None');
+            
         end
         
         function SaveParameterCallback(this, source, eventdata)
@@ -167,11 +313,18 @@ classdef OSCGUI < handle
                 set(this.WF_period_selectors(wf), 'String', num2str(this.os.Waveforms(wf, 4)));
             end
         end
-                 
+         
+%         function ConfigCallback(this, source, eventdata)
+%            [bitfile, path] = uigetfile('*.bit', 'Select the control bitfile');
+%            if ~isequal(bitfile, 0)
+%                this.os.Configure(strcat(path, bitfile));
+%            end
+%         end
+        
         function CreateWaveformPanels(this)
             for wf = 1:4
                wf_panel = uipanel('Title', strcat("Waveform ", num2str(wf)), 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
-                  'Position', [.05 .60 - ((wf -1) * .15) .34 .15]);
+                  'Position', [.05 .60 - ((wf -1) * .15) .34 .15], 'Parent', this.f);
                this.PopulateWaveformPanels(wf_panel, wf);
             end
         end
@@ -265,7 +418,11 @@ classdef OSCGUI < handle
         end
         
         function TriggerCallback(this, source, eventdata)
-            this.os.TriggerChannel(source.UserData.Headstage, source.UserData.Channel)
+            if(this.os.Channels((source.UserData.Headstage - 1) * 12 + source.UserData.Channel, 1) == 1)
+                this.os.TriggerPipe(source.UserData.Headstage, source.UserData.Channel, this.pipe_data);
+            else
+                this.os.TriggerChannel(source.UserData.Headstage, source.UserData.Channel);
+            end
         end
         
         function UpdateEnable(this,my_switch)
@@ -280,6 +437,7 @@ classdef OSCGUI < handle
              set(this.WF_pw_selectors,'Enable','on');
              set(this.load_parameter_button,'Enable','on');
              set(this.save_parameter_button,'Enable','on');
+             set(this.pipe_button,'Enable','on');
              set(this.reset,'Enable','on');
              set(this.serial_selector,'Enable','off');
             else
@@ -293,6 +451,7 @@ classdef OSCGUI < handle
              set(this.WF_pw_selectors,'Enable','off');
              set(this.load_parameter_button,'Enable','off');
              set(this.save_parameter_button,'Enable','off');
+             set(this.pipe_button,'Enable','off');
              set(this.reset,'Enable','off');
              set(this.serial_selector,'Enable','on');
             end
@@ -316,8 +475,8 @@ classdef OSCGUI < handle
              else
                      ec = this.os.Disconnect();
                         if ec == 0
-                        set(source, 'String', 'Connect & Configure');   
-                        this.UpdateParamDisplay(); 
+                        set(source, 'String', 'Connect & Configure');  
+                        this.UpdateParamDisplay();  
                         this.UpdateEnable('Enable off');
                         end
              end
