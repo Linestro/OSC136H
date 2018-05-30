@@ -289,7 +289,7 @@ classdef OSC136H < handle
                 fprintf('Board not open\n')
                 return
             end
-             this.UpdateChannelPipeWf(headstage, chan, 1);
+            this.UpdateChannelPipeWf(headstage, chan, 1);
 
             SIZE = numel(pipe_data);         % valid SIZE (1 - 511)
             if (SIZE <= 0)
