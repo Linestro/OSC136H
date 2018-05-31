@@ -305,17 +305,16 @@ classdef OSC136H < handle
 
             calllib('okFrontPanel', 'okFrontPanel_WriteToPipeIn', this.dev, hex2dec('80'), 2 * SIZE, data_out);
             persistent buf pv;
-            SIZE = 4 * SIZE;
             buf(2 * SIZE, 1) = uint8(0);
             pv = libpointer('uint8Ptr', buf);
             calllib('okFrontPanel', 'okFrontPanel_ReadFromPipeOut', this.dev, hex2dec('A0'), 2 * SIZE, pv);
 
-        epvalue = get(pv, 'Value');
-        pipe_out_data = zeros(SIZE, 1);
-        for i = 1:SIZE
-            pipe_out_data(i) = uint16(epvalue(2 * i - 1))* 256 + uint16(epvalue(2 * i));
-            fprintf('Read %d \n',   pipe_out_data(i));
-        end
+%         epvalue = get(pv, 'Value');
+%         pipe_out_data = zeros(SIZE, 1);
+%         for i = 1:SIZE
+%             pipe_out_data(i) = uint16(epvalue(2 * i - 1))* 256 + uint16(epvalue(2 * i));
+%             fprintf('Read %d \n',   pipe_out_data(i));
+%         end
             
             ec = 0;
              

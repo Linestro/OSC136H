@@ -238,8 +238,10 @@ classdef OSCGUI < handle
             for i = 1 : numel(x)
                 y(i) = this.temp_pipe_data(floor(x(i)) + 1);
             end
-            figure('Name','Preview of Pipe Waveform','numbertitle', 'off');
+            figure('Name','Preview of Pipe Waveform','numbertitle', 'off')
             plot(x,y);
+            xlabel('Cycles (~0.09 ms per cycle)') % x-axis label
+            ylabel('Amplitude (\muA)') % y-axis label
             if(this.temp_num_pipe_pulse > 0)
                 title(strcat({'The following pattern will repeat  '},num2str(this.temp_num_pipe_pulse),{'  times.'}));
             else

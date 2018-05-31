@@ -12,7 +12,7 @@ function write2file
     SIZE = 32767;
     temp(SIZE, 1) = 0;
     for i = 1 : SIZE
-        temp(i) = mod(i, 600);
+        temp(i) = mod(i, 255);
     end
     
     % end
