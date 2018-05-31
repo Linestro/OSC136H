@@ -101,7 +101,7 @@ classdef OSC136H < handle
         function open = isOpen(this)
             open = calllib('okFrontPanel', 'okFrontPanel_IsOpen', this.dev);
         end
-        
+               
         % OutputWireInVal
         % Reads the value at a given WireIn endpoint using FP and outputs
         % the 16-bit wire. Useful for checking whether updates worked
@@ -292,24 +292,31 @@ classdef OSC136H < handle
             this.UpdateChannelPipeWf(headstage, chan, 1);
 
             SIZE = numel(pipe_data);         % valid SIZE (1 - 511)
-            if (SIZE <= 0)
-                fprintf('Error: Invalid pipe data size. \n');
+            if (SIZE <= 0 || SIZE >= 32768)
+                fprintf('Error: Invalid pipe data size. Valid size is [1, 32767]. Aborted\n');
                 return
             end
-            disp(pipe_data); 
-
+            
             data_out(2 * SIZE, 1) = uint8(0);
             for i = 1:SIZE
-                data_out(2 * i - 1) = uint8(bitshift(pipe_data(i), -8) & hex2dec('FF')); 
+                data_out(2 * i - 1) = uint8(floor(pipe_data(i) / 256)); 
                 data_out(2 * i) = uint8(mod(pipe_data(i), 256)); 
             end
 
             calllib('okFrontPanel', 'okFrontPanel_WriteToPipeIn', this.dev, hex2dec('80'), 2 * SIZE, data_out);
             persistent buf pv;
+            SIZE = 4 * SIZE;
             buf(2 * SIZE, 1) = uint8(0);
             pv = libpointer('uint8Ptr', buf);
             calllib('okFrontPanel', 'okFrontPanel_ReadFromPipeOut', this.dev, hex2dec('A0'), 2 * SIZE, pv);
 
+        epvalue = get(pv, 'Value');
+        pipe_out_data = zeros(SIZE, 1);
+        for i = 1:SIZE
+            pipe_out_data(i) = uint16(epvalue(2 * i - 1))* 256 + uint16(epvalue(2 * i));
+            fprintf('Read %d \n',   pipe_out_data(i));
+        end
+            
             ec = 0;
              
         end
@@ -393,7 +400,7 @@ classdef OSC136H < handle
             tline = fgetl(fd);
             tlines = cell(0,1);
             while ischar(tline)
-                tlines{end+1,1} = uint16(str2num(tline));
+                tlines{end+1,1} = str2num(tline);
                 tline = fgetl(fd);
             end
             tlines = cell2mat(tlines);

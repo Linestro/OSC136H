@@ -30,7 +30,7 @@ classdef OSCGUI < handle
       pipe_button
       reset
       connected
-      connected_serial_name
+      serial_name
       
     end
     
@@ -59,7 +59,6 @@ classdef OSCGUI < handle
             obj.temp_num_pipe_pulse = 0;
             obj.temp_pipe_data = 0;
             obj.connected = 0;
-            obj.connected_serial_name = 'No connected devices'; 
       
             obj.CreateSetup();
             obj.CreateHeadstagePanels();
@@ -74,7 +73,6 @@ classdef OSCGUI < handle
                     temp = obj.os.GetBoardSerials();
                     set(obj.serial_selector, 'String', temp);
                 end
-                    set(obj.serial_selector,'Enable','off','String', obj.connected_serial_name);
             catch
                 fprintf("Detection of Board was aborted by the user.\n");
             end
@@ -106,8 +104,6 @@ classdef OSCGUI < handle
             temp = this.os.GetBoardSerials();
             set(this.serial_selector, 'String', temp);
             end
-            set(this.serial_selector,'Enable','off','String',this.connected_serial_name);
-          
           catch
             fprintf("Detection of Board was aborted by the user.\n");
           end
@@ -454,6 +450,7 @@ classdef OSCGUI < handle
              set(this.save_parameter_button,'Enable','on');
              set(this.pipe_button,'Enable','on');
              set(this.reset,'Enable','on');
+             set(this.serial_selector,'Enable','off');
         end
         
         function ConnectCallback(this, source, eventdata)
@@ -466,13 +463,11 @@ classdef OSCGUI < handle
                        if ~isequal(bitfile, 0)
                            this.os.Configure(strcat(path, bitfile));
                            set(source, 'String', 'Disconnect');
-                           this.connected = 1;
-                           this.connected_serial_name = serial_string;
                            this.UpdateEnable();
+                           this.connected = 1;
                        else
                            this.os.Disconnect();
-                           this.connected = 0; 
-                           this.connected_serial_name = 'No connected devices';
+                           this.connected = 0;         
                            this.DetectBoard();
                        end
                 end
@@ -484,8 +479,7 @@ classdef OSCGUI < handle
                         this.CreateHeadstagePanels();
                         this.CreateWaveformPanels();
                         this.UpdateParamDisplay();  
-                        this.connected = 0;    
-                        this.connected_serial_name = 'No connected devices';        
+                        this.connected = 0;            
                         this.DetectBoard();
                         end
              end
