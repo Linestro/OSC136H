@@ -474,7 +474,10 @@ classdef OSCGUI < handle
                         this.CreateSetup();
                         this.CreateHeadstagePanels();
                         this.CreateWaveformPanels();
-                        this.UpdateParamDisplay();  
+                        this.UpdateParamDisplay();
+                        this.temp_num_pipe_pulse = this.num_pipe_pulse;
+                        this.temp_pipe_data = this.pipe_data;
+                        this.pipe_f.Visible = 'off';  
                         this.connected = 0;    
                         this.connected_serial_name = 'No connected devices';        
                         this.DetectBoard();
