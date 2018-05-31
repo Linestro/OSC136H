@@ -68,16 +68,7 @@ classdef OSCGUI < handle
             set(obj.f,'CloseRequestFcn',@(h,e)obj.CloseRequestCallback);
             set(obj.pipe_f,'CloseRequestFcn',@(h,e)obj.PipeCloseRequestCallback);
             
-            try
-                while(obj.connected == 0)                
-                    pause(1);
-                    temp = obj.os.GetBoardSerials();
-                    set(obj.serial_selector, 'String', temp);
-                end
-                    set(obj.serial_selector,'Enable','off','String', obj.connected_serial_name);
-            catch
-                fprintf("Detection of Board was aborted by the user.\n");
-            end
+            obj.DetectBoard();
         end
         
         function delete(this)
