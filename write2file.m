@@ -9,7 +9,7 @@ function write2file
     fid = fopen('pipe.txt','wt');
     
     % To do
-    SIZE = 32600;
+    SIZE = 32768;
     temp(SIZE, 1) = 0;
     for i = 1 : SIZE
         temp(i) = mod(i, 600);
@@ -17,8 +17,8 @@ function write2file
     
     % end
     
-    
     fprintf(fid,'%d\n',temp);
+    fprintf("Write Success to pipe.txt.\n");
     fclose(fid);
     
 end

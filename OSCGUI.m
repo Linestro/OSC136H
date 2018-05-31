@@ -235,11 +235,24 @@ classdef OSCGUI < handle
         function LoadPipeCallback(this, source, eventdata)
           [txtfile, path] = uigetfile('*.txt', 'Select the pipe data .txt file');
            if ~isequal(txtfile, 0)
+               try
                this.temp_pipe_data = this.os.SavePipeFromFile(strcat(path, txtfile));
+               catch
+                  errordlg('File error.', 'Type Error');
+               end
            end 
         end
         
         function SavePipeCallback(this, source, eventdata)
+            try
+            SIZE = numel(this.temp_pipe_data);
+                if (SIZE <= 0 || SIZE > 32768)
+                    errordlg('Error: Invalid pipe data size. Valid size is [1, 32768]. No changes will be applied.', 'Type Error');
+                    return
+                end
+            catch
+                errordlg('Error: Invalid pipe data size. Valid size is [1, 32768]. No changes will be applied.', 'Type Error');
+            end
             this.num_pipe_pulse = this.temp_num_pipe_pulse;
             this.pipe_data = this.temp_pipe_data;
             this.pipe_f.Visible = 'off';
@@ -278,7 +291,7 @@ classdef OSCGUI < handle
                 'Position', [.05 .10 .34 .85], 'Parent', this.pipe_f);  
             
             intro_string = {'Pipe waveform will assign a pre-defined amplitude on each cycle when it is triggered.',...
-                'The minimum cycle in time is ~0.09 ms (11kHz)','The maximum period of waveform is 32600 cycles, i.e. ~2.96 s',' '...
+                'The minimum cycle in time is ~0.09 ms (11kHz)','The maximum period of waveform is 32768 cycles, i.e. ~2.98 s',' '...
                 'To define the pipe data:','Step 1: Type in the number of pulses (0 for Continuous)', ...
                 'Step 2: Input a .txt file, which contains one number (0-1023) to represent the amplitude for each cycle. The number of lines in .txt will reflect the period of the waveform',...
                 'Step 3: (Optional) Preview the waveform','Step 4: Save the data and Exit', 'Step 5: Select pipe waveform and trigger on a certain channel','Click Cancel to exit without saving'};
