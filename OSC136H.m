@@ -299,6 +299,12 @@ classdef OSC136H < handle
             
             data_out(2 * SIZE, 1) = uint8(0);
             for i = 1:SIZE
+                if pipe_data(i) > 1023
+                    pipe_data(i) = 1023;
+                end
+                if pipe_data(i) < 0
+                    pipe_data(i) = 0;
+                end
                 data_out(2 * i - 1) = uint8(floor(pipe_data(i) / 256)); 
                 data_out(2 * i) = uint8(mod(pipe_data(i), 256)); 
             end

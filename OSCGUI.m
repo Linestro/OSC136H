@@ -40,7 +40,7 @@ classdef OSCGUI < handle
             set(obj.f, 'MenuBar', 'none');
             set(obj.f, 'ToolBar', 'none');
             
-            obj.pipe_f = figure('Name', 'OSC136H Pipe Initialization', 'NumberTitle', 'off', 'Visible','off','Units', 'characters', 'Position',[20 20 200 40]);
+            obj.pipe_f = figure('Name', 'OSC136H Custom waveform Initialization', 'NumberTitle', 'off', 'Visible','off','Units', 'characters', 'Position',[20 20 200 40]);
             set(obj.pipe_f, 'MenuBar', 'none');
             set(obj.pipe_f, 'ToolBar', 'none');
             
@@ -79,17 +79,22 @@ classdef OSCGUI < handle
             if(~this.os.isOpen())
                 errordlg('Invalid operation. Board is not connected. Windows reset', 'Type Error');
                 this.os.Disconnect();
+                this.os = OSC136H();
+                this.Channel_WF_selectors = zeros(3, 12);
+                this.Channel_Trig_selectors = zeros(3, 12);
+                this.WF_pulse_selectors = zeros(4, 1);
+                this.WF_period_selectors = zeros(4, 1);
+                this.WF_amp_selectors = zeros(4, 1);
+                this.WF_pw_selectors = zeros(4, 1);
+                this.num_pipe_pulse = 0;
+                this.pipe_data = 0;
+                this.temp_num_pipe_pulse = 0;
+                this.temp_pipe_data = 0;
+                this.connected = 0;
+                this.connected_serial_name = 'No connected devices'; 
                 this.CreateSetup();
                 this.CreateHeadstagePanels();
                 this.CreateWaveformPanels();
-                this.UpdateParamDisplay();
-                this.num_pipe_pulse = 0;
-                this.pipe_data = 0;
-                this.temp_num_pipe_pulse = this.num_pipe_pulse;
-                this.temp_pipe_data = this.pipe_data;
-                this.pipe_f.Visible = 'off';  
-                this.connected = 0;    
-                this.connected_serial_name = 'No connected devices';        
                 this.DetectBoard();
             end
         end
@@ -106,7 +111,7 @@ classdef OSCGUI < handle
              hObject.temp_num_pipe_pulse = hObject.num_pipe_pulse;
              hObject.temp_pipe_data = hObject.pipe_data;
              hObject.pipe_f.Visible = 'off';
-             fprintf("Pipe initilization canceled. No changes will be applied.\n");
+             fprintf("Custom waveform initilization canceled. No changes will be applied.\n");
        end
         
        function DetectBoard(this)
@@ -181,7 +186,7 @@ classdef OSCGUI < handle
                 'Callback',@this.SaveParameterCallback, 'Parent', setup_panel,'Enable','off');
             align(this.save_parameter_button,'Center','None');
             
-            this.pipe_button = uicontrol('Style','pushbutton','String','Pipe Initialization','Units', 'normalized', 'Position',[.67 .08 .25 .35],...
+            this.pipe_button = uicontrol('Style','pushbutton','String','Custom waveform','Units', 'normalized', 'Position',[.67 .08 .25 .35],...
                 'Callback',@this.PipeCallback, 'Parent', setup_panel,'Enable','off');
             align(this.pipe_button,'Center','None');
             
@@ -256,7 +261,7 @@ classdef OSCGUI < handle
             this.num_pipe_pulse = this.temp_num_pipe_pulse;
             this.pipe_data = this.temp_pipe_data;
             this.pipe_f.Visible = 'off';
-            fprintf("Pipe initilization saved.\n");
+            fprintf("Custom waveform initilization saved.\n");
             this.ThrowException();
         end
         
@@ -264,7 +269,7 @@ classdef OSCGUI < handle
             this.temp_num_pipe_pulse = this.num_pipe_pulse;
             this.temp_pipe_data = this.pipe_data;
             this.pipe_f.Visible = 'off';
-            fprintf("Pipe initilization canceled. No changes will be applied.\n");
+            fprintf("Custom waveform initilization canceled. No changes will be applied.\n");
         end
         
         function PreviewPipeCallback(this, source, eventdata)           
@@ -337,9 +342,13 @@ classdef OSCGUI < handle
         
         function LoadParameterCallback(this, source, eventdata)
             [config_file, path] = uigetfile('*.txt', 'Select configuration txt file');
+            try
             if ~isequal(config_file, 0)
                this.os.InitBoardFromConfigFile(strcat(path, config_file));
                this.UpdateParamDisplay();
+            end
+            catch
+               errordlg('File error.', 'Type Error');
             end
             this.ThrowException();
         end
@@ -514,18 +523,22 @@ classdef OSCGUI < handle
              else
                      ec = this.os.Disconnect();
                         if ec == 0
-                        set(source, 'String', 'Connect & Configure');  
+                        this.os = OSC136H();
+                        this.Channel_WF_selectors = zeros(3, 12);
+                        this.Channel_Trig_selectors = zeros(3, 12);
+                        this.WF_pulse_selectors = zeros(4, 1);
+                        this.WF_period_selectors = zeros(4, 1);
+                        this.WF_amp_selectors = zeros(4, 1);
+                        this.WF_pw_selectors = zeros(4, 1);
+                        this.num_pipe_pulse = 0;
+                        this.pipe_data = 0;
+                        this.temp_num_pipe_pulse = 0;
+                        this.temp_pipe_data = 0;
+                        this.connected = 0;
+                        this.connected_serial_name = 'No connected devices'; 
                         this.CreateSetup();
                         this.CreateHeadstagePanels();
                         this.CreateWaveformPanels();
-                        this.UpdateParamDisplay();
-                        this.num_pipe_pulse = 0;
-                        this.pipe_data = 0;
-                        this.temp_num_pipe_pulse = this.num_pipe_pulse;
-                        this.temp_pipe_data = this.pipe_data;
-                        this.pipe_f.Visible = 'off';  
-                        this.connected = 0;    
-                        this.connected_serial_name = 'No connected devices';        
                         this.DetectBoard();
                         end
              end
