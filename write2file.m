@@ -9,10 +9,10 @@ function write2file
     fid = fopen('pipe.txt','wt');
     
     % To do
-    SIZE = 32767;
+    SIZE = 32600;
     temp(SIZE, 1) = 0;
     for i = 1 : SIZE
-        temp(i) = mod(i, 255);
+        temp(i) = mod(i, 600);
     end
     
     % end

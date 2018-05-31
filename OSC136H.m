@@ -291,9 +291,9 @@ classdef OSC136H < handle
             end
             this.UpdateChannelPipeWf(headstage, chan, 1);
 
-            SIZE = numel(pipe_data);         % valid SIZE (1 - 511)
-            if (SIZE <= 0 || SIZE >= 32768)
-                fprintf('Error: Invalid pipe data size. Valid size is [1, 32767]. Aborted\n');
+            SIZE = numel(pipe_data);
+            if (SIZE <= 0 || SIZE > 32600)
+                fprintf('Error: Invalid pipe data size. Valid size is [1, 32600]. Aborted\n');
                 return
             end
             
