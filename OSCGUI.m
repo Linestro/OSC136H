@@ -75,6 +75,25 @@ classdef OSCGUI < handle
             this.os.delete();
         end
         
+        function ThrowException(this)
+            if(~this.os.isOpen())
+                errordlg('Invalid operation. Board is not connected. Windows reset', 'Type Error');
+                this.os.Disconnect();
+                this.CreateSetup();
+                this.CreateHeadstagePanels();
+                this.CreateWaveformPanels();
+                this.UpdateParamDisplay();
+                this.num_pipe_pulse = 0;
+                this.pipe_data = 0;
+                this.temp_num_pipe_pulse = this.num_pipe_pulse;
+                this.temp_pipe_data = this.pipe_data;
+                this.pipe_f.Visible = 'off';  
+                this.connected = 0;    
+                this.connected_serial_name = 'No connected devices';        
+                this.DetectBoard();
+            end
+        end
+        
         function CloseRequestCallback(hObject,eventdata)
              if(ishandle(hObject.pipe_f))
                 hObject.pipe_f.Visible = 'off';
@@ -130,10 +149,12 @@ classdef OSCGUI < handle
         
         function WFSelectorCB(this, source, eventdata)
             this.os.UpdateChannelWaveform(source.UserData.hs, source.UserData.chan, get(source, 'Value'));
+            this.ThrowException();
         end
         
         function TrigSelectorCB(this, source, eventdata)
             this.os.UpdateChannelTriggerType(source.UserData.hs, source.UserData.chan, get(source, 'Value') - 1);
+            this.ThrowException();
         end
         
         function ContinuousButtonCB(this, source, eventdata)
@@ -145,6 +166,7 @@ classdef OSCGUI < handle
                this.os.ToggleContinuous(source.UserData.hs, source.UserData.chan, 0);
                set(source, 'Background', 'y');
             end
+            this.ThrowException();
         end
         
         function CreateSetup(this)
@@ -181,8 +203,9 @@ classdef OSCGUI < handle
         function ResetCallback(this, source, eventdata)
             ec = this.os.SysReset();
             if ec == 0
-               this.UpdateParamDisplay(); 
+               this.UpdateParamDisplay();
             end
+            this.ThrowException();
         end
         
         function ExitCallback(this, source, eventdata)
@@ -196,6 +219,7 @@ classdef OSCGUI < handle
         function PipeCallback(this, source, eventdata)
             this.pipe_f.Visible = 'on';
             this.CreatePipePanel();
+            this.ThrowException();
         end
         
         function PipePulseUpdate(this, source, eventdata)
@@ -220,8 +244,7 @@ classdef OSCGUI < handle
             this.pipe_data = this.temp_pipe_data;
             this.pipe_f.Visible = 'off';
             fprintf("Pipe initilization saved.\n");
-%             fprintf("The following pattern will be repeating %d times.\n", this.num_pipe_pulse);
-%             disp(this.pipe_data);
+            this.ThrowException();
         end
         
         function CancelPipeCallback(this, source, eventdata)
@@ -296,6 +319,7 @@ classdef OSCGUI < handle
             if ~isequal(filename, 0)
                this.os.SaveBoardToConfigFile(strcat(path, filename));
             end
+            this.ThrowException();
         end
         
         function LoadParameterCallback(this, source, eventdata)
@@ -304,6 +328,7 @@ classdef OSCGUI < handle
                this.os.InitBoardFromConfigFile(strcat(path, config_file));
                this.UpdateParamDisplay();
             end
+            this.ThrowException();
         end
         
         function UpdateParamDisplay(this)
@@ -371,6 +396,7 @@ classdef OSCGUI < handle
                errordlg('Invalid value for num pulses, valid values integers in range 0 to 63', 'Num Pulses Range Error');
                this.UpdateParamDisplay();
             end
+            this.ThrowException();
         end
         
         function AmpSelectCB(this, source, eventdata)
@@ -388,6 +414,7 @@ classdef OSCGUI < handle
                errordlg('Invalid value for amplitude, valid values integers in range 0 to 1023 uA', 'Amplitude Range Error');
                this.UpdateParamDisplay();
             end
+            this.ThrowException();
         end
         
         function PWSelectCB(this,source, eventdata)
@@ -405,6 +432,7 @@ classdef OSCGUI < handle
                errordlg('Invalid value for pulse width, valid values multiples of 2.5 in range 0 to 637.5 ms', 'Pulse Width Range Error');
                this.UpdateParamDisplay();
             end
+            this.ThrowException();
         end
         
         function PeriodSelectCB(this, source, eventdata)
@@ -422,6 +450,7 @@ classdef OSCGUI < handle
                errordlg('Please enter only numeric values for period.', 'Type Error');
                this.UpdateParamDisplay();
             end
+            this.ThrowException();
         end
         
         function TriggerCallback(this, source, eventdata)
@@ -431,6 +460,7 @@ classdef OSCGUI < handle
             else
                 this.os.TriggerChannel(source.UserData.Headstage, source.UserData.Channel);
             end
+            this.ThrowException();
         end
         
         function UpdateEnable(this)
