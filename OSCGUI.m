@@ -201,7 +201,7 @@ classdef OSCGUI < handle
         function PipePulseUpdate(this, source, eventdata)
             val = get(source, 'String');
             num = str2double(val);
-            if ~isnan(num) && num > 0
+            if ~isnan(num) && num >= 0
                 this.temp_num_pipe_pulse = num;
             else
                errordlg('Please enter only positive numeric values for number of pulses.', 'Type Error');
@@ -219,8 +219,6 @@ classdef OSCGUI < handle
             this.num_pipe_pulse = this.temp_num_pipe_pulse;
             this.pipe_data = this.temp_pipe_data;
             this.pipe_f.Visible = 'off';
-            this.os.UpdatePipeInfo(numel(this.pipe_data), this.num_pipe_pulse);
-            
             fprintf("Pipe initilization saved.\n");
 %             fprintf("The following pattern will be repeating %d times.\n", this.num_pipe_pulse);
 %             disp(this.pipe_data);
@@ -255,12 +253,12 @@ classdef OSCGUI < handle
                 'Position', [.05 .10 .34 .85], 'Parent', this.pipe_f);  
             
             intro_string = {'Pipe waveform will assign a pre-defined amplitude on each cycle when it is triggered.',...
-                'The minimum cycle in time is xxx ms','The maximum period of waveform is xxx cycles, i.e. xxx ms',' '...
+                'The minimum cycle in time is ~0.09 ms (11kHz)','The maximum period of waveform is 32768 cycles, i.e. 2.98 s',' '...
                 'To define the pipe data:','Step 1: Type in the number of pulses (0 for Continuous)', ...
                 'Step 2: Input a .txt file, which contains one number (0-1023) to represent the amplitude for each cycle. The number of lines in .txt will reflect the period of the waveform',...
                 'Step 3: (Optional) Preview the waveform','Step 4: Save the data and Exit', 'Step 5: Select pipe waveform and trigger on a certain channel','Click Cancel to exit without saving'};
 
-            uicontrol('Style', 'text', 'FontSize', 12, 'String', intro_string, 'Units', 'normalized', 'Parent',... 
+            uicontrol('Style', 'text', 'FontSize', 10, 'String', intro_string, 'Units', 'normalized', 'Parent',... 
                             pipe_text_panel, 'Position',[0.05 0.05 0.8 0.9], 'Background', 'white','horizontalalignment','left');
                 
             pipe_setup1_panel = uipanel('Title', 'Step 1', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
@@ -426,6 +424,7 @@ classdef OSCGUI < handle
         
         function TriggerCallback(this, source, eventdata)
             if(this.os.Channels((source.UserData.Headstage - 1) * 12 + source.UserData.Channel, 1) == 1)
+                this.os.UpdatePipeInfo(numel(this.pipe_data), this.num_pipe_pulse);
                 this.os.TriggerPipe(source.UserData.Headstage, source.UserData.Channel, this.pipe_data);
             else
                 this.os.TriggerChannel(source.UserData.Headstage, source.UserData.Channel);
@@ -475,6 +474,8 @@ classdef OSCGUI < handle
                         this.CreateHeadstagePanels();
                         this.CreateWaveformPanels();
                         this.UpdateParamDisplay();
+                        this.num_pipe_pulse = 0;
+                        this.pipe_data = 0;
                         this.temp_num_pipe_pulse = this.num_pipe_pulse;
                         this.temp_pipe_data = this.pipe_data;
                         this.pipe_f.Visible = 'off';  
