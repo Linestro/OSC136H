@@ -6,7 +6,7 @@ function write2file
 %   as long as the .txt file read by the pipe is columns of specified amplitude ranging
 %   from [0, 1023].
 
-    fid = fopen('pipe.txt','wt');
+    fid = fopen('custom_waveform.pipe','wt');
     
     % To do
     SIZE = 32768;
@@ -18,7 +18,7 @@ function write2file
     % end
     
     fprintf(fid,'%d\n',temp);
-    fprintf("Write Success to pipe.txt.\n");
+    fprintf("Write Success to custom_waveform.pipe.\n");
     fclose(fid);
     
 end

@@ -248,7 +248,7 @@ classdef OSCGUI < handle
         end
         
         function LoadPipeCallback(this, source, eventdata)
-          [txtfile, path] = uigetfile('*.txt', 'Select the pipe data .txt file');
+          [txtfile, path] = uigetfile('*.pipe', 'Select the pipe data .txt file');
            if ~isequal(txtfile, 0)
                try
                this.temp_pipe_data = this.os.SavePipeFromFile(strcat(path, txtfile));
@@ -306,8 +306,8 @@ classdef OSCGUI < handle
             pipe_text_panel = uipanel('Title', 'Instruction', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
                 'Position', [.05 .10 .34 .85], 'Parent', this.pipe_f);  
             
-            intro_string = {'Pipe waveform will assign a pre-defined amplitude on each cycle when it is triggered.',...
-                'The minimum cycle in time is ~0.09 ms (11kHz)','The maximum period of waveform is 32768 cycles, i.e. ~2.98 s',' '...
+            intro_string = {'Pipe waveform will assign a pre-defined amplitude on each cycle when it is triggered.',' ',...
+                'The minimum step size in time is ~0.09 ms (11kHz)','The maximum period of waveform is 32768 cycles, i.e. ~2.98 s',' '...
                 'To define the pipe data:','Step 1: Type in the number of pulses', ...
                 'Step 2: Input a .txt file, which contains one number (0-1023) to represent the amplitude for each cycle. The number of lines in .txt will reflect the period of the waveform',...
                 'Step 3: (Optional) Preview the waveform','Step 4: Save the data and Exit', 'Step 5: Select pipe waveform and trigger on a certain channel','Click Cancel to exit without saving'};
@@ -325,12 +325,12 @@ classdef OSCGUI < handle
             
             pipe_setup2_panel = uipanel('Title', 'Step 2', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
                 'Position', [.50 .53 .34 .19], 'Parent', this.pipe_f);
-            uicontrol('Style','pushbutton','String','Load pipe from File','Units', 'normalized', 'Position',[.3 .35 .4 .4],...
+            uicontrol('Style','pushbutton','String','Load custom waveform','Units', 'normalized', 'Position',[.3 .35 .4 .4],...
                 'Callback',@this.LoadPipeCallback, 'Parent', pipe_setup2_panel);
             
             pipe_setup3_panel = uipanel('Title', 'Step 3 (Optional)', 'FontSize', 12, 'BackgroundColor', 'white', 'Units', 'normalized',...
                 'Position', [.50 .28 .34 .19], 'Parent', this.pipe_f);
-            uicontrol('Style','pushbutton','String','Preview the pipe function','Units', 'normalized', 'Position',[.3 .35 .4 .4],...
+            uicontrol('Style','pushbutton','String','Preview the custom waveform','Units', 'normalized', 'Position',[.3 .35 .4 .4],...
                 'Callback',@this.PreviewPipeCallback, 'Parent', pipe_setup3_panel);
             
             savepipe_button = uicontrol('Style','pushbutton','String','Save & Exit', 'FontSize', 10, 'Units', 'normalized', 'Position',[.50 .11 .15 .08],'Callback',@this.SavePipeCallback,...
@@ -353,13 +353,9 @@ classdef OSCGUI < handle
         
         function LoadParameterCallback(this, source, eventdata)
             [config_file, path] = uigetfile('*.txt', 'Select configuration txt file');
-            try
             if ~isequal(config_file, 0)
                this.os.InitBoardFromConfigFile(strcat(path, config_file));
                this.UpdateParamDisplay();
-            end
-            catch
-               errordlg('File error.', 'Type Error');
             end
             this.ThrowException();
         end

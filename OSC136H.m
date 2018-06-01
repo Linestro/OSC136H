@@ -291,8 +291,8 @@ classdef OSC136H < handle
             end
             
             SIZE = numel(pipe_data);
-            if (SIZE <= 0 || SIZE > 32768)
-                errordlg('Error: Invalid pipe data size. Valid size is [1, 32768]. Aborted.', 'Type Error');
+            if (SIZE <= 1 || SIZE > 32768)
+                errordlg('Error: Invalid pipe data size. Valid size is [2, 32768]. Aborted.', 'Type Error');
                 return
             end
             
