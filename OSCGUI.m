@@ -54,9 +54,9 @@ classdef OSCGUI < handle
             obj.WF_amp_selectors = zeros(4, 1);
             obj.WF_pw_selectors = zeros(4, 1);
             
-            obj.num_pipe_pulse = 0;
+            obj.num_pipe_pulse = 1;
             obj.pipe_data = 0;
-            obj.temp_num_pipe_pulse = 0;
+            obj.temp_num_pipe_pulse = 1;
             obj.temp_pipe_data = 0;
             obj.connected = 0;
             obj.connected_serial_name = 'No connected devices'; 
@@ -86,9 +86,9 @@ classdef OSCGUI < handle
                 this.WF_period_selectors = zeros(4, 1);
                 this.WF_amp_selectors = zeros(4, 1);
                 this.WF_pw_selectors = zeros(4, 1);
-                this.num_pipe_pulse = 0;
+                this.num_pipe_pulse = 1;
                 this.pipe_data = 0;
-                this.temp_num_pipe_pulse = 0;
+                this.temp_num_pipe_pulse = 1;
                 this.temp_pipe_data = 0;
                 this.connected = 0;
                 this.connected_serial_name = 'No connected devices'; 
@@ -140,9 +140,9 @@ classdef OSCGUI < handle
             for chan = 1:12
                 uicontrol('Style', 'text', 'String', strcat('Shank ', num2str(ceil(chan / 3)), ' LED ', num2str(mod(chan - 1, 3) + 1)), 'Units', 'normalized', 'Parent',... 
                             parent, 'Position', [.0 .90 - (chan - 1) * (1/13) .1 1/13], 'Background', 'white');
-                this.Channel_WF_selectors(hs, chan) = uicontrol('Style', 'popupmenu', 'String', {'Waveform 1', 'Waveform 2', 'Waveform 3', 'Waveform 4'}, 'Units', 'normalized', 'Parent',... 
+                this.Channel_WF_selectors(hs, chan) = uicontrol('Style', 'popupmenu', 'String', {'Waveform 1', 'Waveform 2', 'Waveform 3', 'Waveform 4','Custom waveform'}, 'Units', 'normalized', 'Parent',... 
                             parent, 'Position', [.1 .90 - (chan - 1) * (1/13) .2 1/13], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'Callback', @this.WFSelectorCB,'Enable','off');
-                this.Channel_Trig_selectors(hs, chan)= uicontrol('Style', 'popupmenu', 'String', {'PC Trigger', 'External Trigger','Pipe Trigger'}, 'Units', 'normalized', 'Parent',... 
+                this.Channel_Trig_selectors(hs, chan)= uicontrol('Style', 'popupmenu', 'String', {'PC Trigger', 'External Trigger'}, 'Units', 'normalized', 'Parent',... 
                             parent, 'Position', [.3 .90 - (chan - 1) * (1/13) .2 1/13], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'UserData', struct('hs', hs, 'chan', chan),...
                             'Callback', @this.TrigSelectorCB,'Enable','off');
                 this.toggle_button(hs, chan) = uicontrol('Style', 'togglebutton', 'String', 'Continuous Stream', 'Units', 'normalized', 'Parent', parent, 'UserData', struct('hs', hs, 'chan', chan),... 
@@ -165,10 +165,20 @@ classdef OSCGUI < handle
         function ContinuousButtonCB(this, source, eventdata)
             state = get(source, 'Value');
             if state == get(source, 'Max')
+               if(this.os.Channels((source.UserData.hs - 1) * 12 + source.UserData.chan, 1) == 1)
+                  this.os.UpdateChannelPipeWf(source.UserData.hs, source.UserData.chan, 0);
+                  this.os.UpdatePipeInfo(numel(this.pipe_data), 65535);
+                  this.os.TriggerPipe(source.UserData.hs, source.UserData.chan, this.pipe_data);
+               else
                this.os.ToggleContinuous(source.UserData.hs, source.UserData.chan, 1);
+               end
                set(source, 'Background', 'g');
             else
-               this.os.ToggleContinuous(source.UserData.hs, source.UserData.chan, 0);
+               if(this.os.Channels((source.UserData.hs - 1) * 12 + source.UserData.chan, 1) == 1)
+                  this.os.UpdatePipeInfo(numel(this.pipe_data), 0);
+               else
+                  this.os.ToggleContinuous(source.UserData.hs, source.UserData.chan, 0);
+               end
                set(source, 'Background', 'y');
             end
             this.ThrowException();
@@ -230,10 +240,10 @@ classdef OSCGUI < handle
         function PipePulseUpdate(this, source, eventdata)
             val = get(source, 'String');
             num = str2double(val);
-            if ~isnan(num) && num >= 0
+            if ~isnan(num) && num >= 0 && num <= 8192
                 this.temp_num_pipe_pulse = num;
             else
-               errordlg('Please enter only positive numeric values for number of pulses.', 'Type Error');
+               errordlg('Please enter positive numeric values [0, 8192] for number of pulses.', 'Type Error');
             end
         end
         
@@ -274,21 +284,22 @@ classdef OSCGUI < handle
         
         function PreviewPipeCallback(this, source, eventdata)           
             data_size = numel(this.temp_pipe_data);
-            x = 0:0.01:data_size - 0.01;
-            y = 0:0.01:data_size - 0.01;
+            x = 0:0.01:(data_size - 0.01);
+            y = 0:0.01:(data_size - 0.01);
             for i = 1 : numel(x)
                 y(i) = this.temp_pipe_data(floor(x(i)) + 1);
+                x(i) = 0.0909 * x(i);
             end
             figure('Name','Preview of Pipe Waveform','numbertitle', 'off')
             plot(x,y);
-            xlabel('Cycles (~0.09 ms per cycle)') % x-axis label
+            xlabel('Time (ms)') % x-axis label
             ylabel('Amplitude (\muA)') % y-axis label
             if(this.temp_num_pipe_pulse > 0)
                 title(strcat({'The following pattern will repeat  '},num2str(this.temp_num_pipe_pulse),{'  times.'}));
             else
                 title('The following pattern will be continuous.');  
             end
-            axis([0 data_size 0 max(max(this.temp_pipe_data))+1 ]);
+            axis([0 (data_size - 0.01)*0.0909 -1 max(max(this.temp_pipe_data))+1 ]);
         end
         
         function CreatePipePanel(this)           
@@ -297,7 +308,7 @@ classdef OSCGUI < handle
             
             intro_string = {'Pipe waveform will assign a pre-defined amplitude on each cycle when it is triggered.',...
                 'The minimum cycle in time is ~0.09 ms (11kHz)','The maximum period of waveform is 32768 cycles, i.e. ~2.98 s',' '...
-                'To define the pipe data:','Step 1: Type in the number of pulses (0 for Continuous)', ...
+                'To define the pipe data:','Step 1: Type in the number of pulses', ...
                 'Step 2: Input a .txt file, which contains one number (0-1023) to represent the amplitude for each cycle. The number of lines in .txt will reflect the period of the waveform',...
                 'Step 3: (Optional) Preview the waveform','Step 4: Save the data and Exit', 'Step 5: Select pipe waveform and trigger on a certain channel','Click Cancel to exit without saving'};
 
@@ -477,6 +488,7 @@ classdef OSCGUI < handle
         
         function TriggerCallback(this, source, eventdata)
             if(this.os.Channels((source.UserData.Headstage - 1) * 12 + source.UserData.Channel, 1) == 1)
+                this.os.UpdateChannelPipeWf(source.UserData.Headstage, source.UserData.Channel, 0);
                 this.os.UpdatePipeInfo(numel(this.pipe_data), this.num_pipe_pulse);
                 this.os.TriggerPipe(source.UserData.Headstage, source.UserData.Channel, this.pipe_data);
             else
@@ -530,9 +542,9 @@ classdef OSCGUI < handle
                         this.WF_period_selectors = zeros(4, 1);
                         this.WF_amp_selectors = zeros(4, 1);
                         this.WF_pw_selectors = zeros(4, 1);
-                        this.num_pipe_pulse = 0;
+                        this.num_pipe_pulse = 1;
                         this.pipe_data = 0;
-                        this.temp_num_pipe_pulse = 0;
+                        this.temp_num_pipe_pulse = 1;
                         this.temp_pipe_data = 0;
                         this.connected = 0;
                         this.connected_serial_name = 'No connected devices'; 

@@ -289,8 +289,7 @@ classdef OSC136H < handle
                 fprintf('Board not open\n')
                 return
             end
-            this.UpdateChannelPipeWf(headstage, chan, 1);
-
+            
             SIZE = numel(pipe_data);
             if (SIZE <= 0 || SIZE > 32768)
                 errordlg('Error: Invalid pipe data size. Valid size is [1, 32768]. Aborted.', 'Type Error');
@@ -310,6 +309,8 @@ classdef OSC136H < handle
             end
 
             calllib('okFrontPanel', 'okFrontPanel_WriteToPipeIn', this.dev, hex2dec('80'), 2 * SIZE, data_out);
+
+            this.UpdateChannelPipeWf(headstage, chan, 1);
             persistent buf pv;
             buf(2 * SIZE, 1) = uint8(0);
             pv = libpointer('uint8Ptr', buf);
@@ -365,8 +366,8 @@ classdef OSC136H < handle
                 ec = -1;
                 return
             end
-            if trig ~= 0 && trig ~= 1 && trig ~= 2
-               fprintf('Valid arguments to trig_select are 0, 1 and 2. Error.\n');
+            if trig ~= 0 && trig ~= 1
+               fprintf('Valid arguments to trig_select are 0 and 1. Error.\n');
                ec = -1;
                return
             end
@@ -375,13 +376,6 @@ classdef OSC136H < handle
             if chan_num == -1
                ec = -1;
                return
-            end
-            
-            
-            this.Channels((headstage - 1) * 12 + chan, 1) = 0;
-            if(trig == 2)
-                this.Channels((headstage - 1) * 12 + chan, 1) = 1;
-                return
             end
             
             PARAM_SIZE = 1; % One bit of trig information.
@@ -448,8 +442,8 @@ classdef OSC136H < handle
                 ec = -1;
                 return
             end
-            if wf <= 0 || wf > 4
-               fprintf('Valid fpga_wf in range [1, 4]. Error.\n');
+            if wf <= 0 || wf > 5
+               fprintf('Valid fpga_wf in range [1, 5]. Error.\n');
                ec = 1;
                return
             end
@@ -459,6 +453,14 @@ classdef OSC136H < handle
                ec = -1;
                return
             end
+            
+            this.Channels((headstage - 1) * 12 + chan, 1) = 0;
+            if(wf == 5)
+                this.Channels((headstage - 1) * 12 + chan, 1) = 1;
+                return
+            end
+            
+            
             PARAM_SIZE = 2; % Two bits of waveform selector.
             PARAM_OFFSET = 0; % 0 bits of offset for param location.
             WF_IDX_OFFSET = 1;
@@ -675,6 +677,9 @@ classdef OSC136H < handle
             if chan_num == -1
                 return
             end
+            
+            this.UpdateChannelPipeWf(headstage, chan, 0);
+            
             offset = floor((chan_num - 1) / 16);
             endpoint = hex2dec('12') + offset;
             in_wire_offset = mod((chan_num -1), 16);
