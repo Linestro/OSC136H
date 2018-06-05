@@ -116,26 +116,29 @@ classdef OSCGUI < handle
        end
        
         function CreateHeadstagePanels(this)
-           for hs = 1:3
-              hs_panel = uipanel('Title', strcat("Headstage ", num2str(hs)), 'FontUnits', 'normalized', 'FontSize', (1/14), 'BackgroundColor', 'white', 'Units', 'normalized',...
-                  'Position', [.4 .7 - (.05 + ((hs - 1) * .3)) .55 .3], 'Parent', this.f);
-              this.PopulateHeadstagePanel(hs_panel, hs);
-           end
+              tabgp = uitabgroup(this.f, 'Position', [.4 .15 .55 .80]);
+              tab1 = uitab(tabgp,'Title', "Headstage 1");
+              tab2 = uitab(tabgp,'Title', "Headstage 2");
+              tab3 = uitab(tabgp,'Title', "Headstage 3");
+              
+              this.PopulateHeadstagePanel(tab1, 1);
+              this.PopulateHeadstagePanel(tab2, 2);
+              this.PopulateHeadstagePanel(tab3, 3);
         end
      
         function PopulateHeadstagePanel(this, parent, hs)
             for chan = 1:12
-                uicontrol('Style', 'text', 'String', strcat('Shank ', num2str(ceil(chan / 3)), ' LED ', num2str(mod(chan - 1, 3) + 1)), 'Units', 'normalized', 'Parent',... 
-                            parent, 'Position', [.0 .90 - (chan - 1) * (1/13) .1 1/13], 'Background', 'white');
+                uicontrol('Style', 'text', 'FontSize', 10, 'String', strcat('Shank ', num2str(ceil(chan / 3)), ' LED ', num2str(mod(chan - 1, 3) + 1)), 'Units', 'normalized', 'Parent',... 
+                            parent, 'Position', [.0 .90 - (chan - 1) * (1/13) .1 1/28], 'Background', 'white');
                 this.Channel_WF_selectors(hs, chan) = uicontrol('Style', 'popupmenu', 'String', {'Waveform 1', 'Waveform 2', 'Waveform 3', 'Waveform 4','Custom waveform'}, 'Units', 'normalized', 'Parent',... 
-                            parent, 'Position', [.1 .90 - (chan - 1) * (1/13) .2 1/13], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'Callback', @this.WFSelectorCB,'Enable','off');
+                            parent, 'FontSize', 9, 'Position', [.1 .90 - (chan - 1) * (1/13) .2 1/28], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'Callback', @this.WFSelectorCB,'Enable','off');
                 this.Channel_Trig_selectors(hs, chan)= uicontrol('Style', 'popupmenu', 'String', {'PC Trigger', 'External Trigger'}, 'Units', 'normalized', 'Parent',... 
-                            parent, 'Position', [.3 .90 - (chan - 1) * (1/13) .2 1/13], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'UserData', struct('hs', hs, 'chan', chan),...
+                            parent, 'FontSize', 9, 'Position', [.3 .90 - (chan - 1) * (1/13) .2 1/28], 'Background', 'white', 'UserData', struct('hs', hs, 'chan', chan), 'UserData', struct('hs', hs, 'chan', chan),...
                             'Callback', @this.TrigSelectorCB,'Enable','off');
                 this.toggle_button(hs, chan) = uicontrol('Style', 'togglebutton', 'String', 'Continuous Stream', 'Units', 'normalized', 'Parent', parent, 'UserData', struct('hs', hs, 'chan', chan),... 
-                            'Position', [.5 .90 - (chan - 1) * (1/13) .25 1/13], 'Background', 'y', 'UserData', struct('hs', hs, 'chan', chan), 'Callback', @this.ContinuousButtonCB,'Enable','off');
+                            'Position', [.5 .901 - (chan - 1) * (1/13) .25 1/28], 'Background', 'y', 'UserData', struct('hs', hs, 'chan', chan), 'Callback', @this.ContinuousButtonCB,'Enable','off');
                 this.push_button (hs, chan) = uicontrol('Style', 'pushbutton', 'String', ['Trigger Channel  ', num2str(chan)], 'Units', 'normalized', 'Callback', @this.TriggerCallback, 'Parent',... 
-                            parent, 'Position', [.75 .90 - (chan - 1) * (1/13) .25 1/13], 'UserData', struct('Headstage', hs, 'Channel', chan), 'Enable','off');
+                            parent, 'Position', [.75 .9002 - (chan - 1) * (1/13) .25 1/27.5], 'UserData', struct('Headstage', hs, 'Channel', chan), 'Enable','off');
             end
         end
         
